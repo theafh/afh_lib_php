@@ -69,68 +69,76 @@ function get_dir_list_array ($dir,$type='all',$extension=false,$sort=false){
 		}
 	}
 
+	$files = Array();
 
 	// work through directory
 	$handle=opendir ($dir);
-	while ($list_file = readdir ($handle)) {
-		// ignore unix path elements
-		if ($list_file != "." && $list_file != ".."){
-			// handle files
-			if($type == 'all' || $type == 'file'){
-				if(is_file($dir.$list_file)){
-					// take every file
-					if($extension == false){
-						$files[] = $list_file;
-					}
-					// or filter by extension
-					else{
-						foreach($extension_arr AS $extension){
-							// plus one for the dot of an extension (to reduce false positives)
-							$extension_len = strlen($extension)+1;
 
-							if(substr($list_file,($extension_len * -1)) == '.'.$extension){
-								$files[] = $list_file;
-								break;
+	// on error, probably if directory does not exist
+	if($handle === false){
+		return false;
+	}
+	else{
+		while ($list_file = readdir ($handle)) {
+			// ignore unix path elements
+			if ($list_file != "." && $list_file != ".."){
+				// handle files
+				if($type == 'all' || $type == 'file'){
+					if(is_file($dir.$list_file)){
+						// take every file
+						if($extension == false){
+							$files[] = $list_file;
+						}
+						// or filter by extension
+						else{
+							foreach($extension_arr AS $extension){
+								// plus one for the dot of an extension (to reduce false positives)
+								$extension_len = strlen($extension)+1;
+
+								if(substr($list_file,($extension_len * -1)) == '.'.$extension){
+									$files[] = $list_file;
+									break;
+								}
 							}
 						}
 					}
 				}
-			}
 
-			// handle directorys
-			if($type == 'all' || $type == 'folder'){
-				if(is_dir($dir.$list_file)){
-					$files[] = $list_file;
+				// handle directorys
+				if($type == 'all' || $type == 'folder'){
+					if(is_dir($dir.$list_file)){
+						$files[] = $list_file;
+					}
 				}
 			}
 		}
-	}
 
 
-	//if($sort != '' && count($files > 0)){
-	if($sort != false && is_array($files) ){
-		$sort = strtolower($sort);
-		switch($sort){
-			// ascending (smallest first)
-			case 'asc':
-				sort($files);
-			break;
+		if($sort != false && count($files > 0) ){
+		//if($sort != false && is_array($files) ){
+			$sort = strtolower($sort);
+			switch($sort){
+				// ascending (smallest first)
+				case 'asc':
+					sort($files);
+				break;
 
-			// ascending natural (like human 1,2,10,11 and not 1,10,11,2 )
-			case 'asc_nat':
-				natsort($files);
-				// because natsort is keeping the array index
-				$new_files = array_values ($files);
-				$files     = $new_files;
-			break;
+				// ascending natural (like human 1,2,10,11 and not 1,10,11,2 )
+				case 'asc_nat':
+					natsort($files);
+					// because natsort is keeping the array index
+					$new_files = array_values ($files);
+					$files     = $new_files;
+				break;
 
-			// descending (biggest first)
-			case 'desc':
-				rsort($files);
-			break;
+				// descending (biggest first)
+				case 'desc':
+					rsort($files);
+				break;
 
-			default:
-				trigger_error('ERROR in Function >>'.__FUNCTION__."()<< - not implementet sort method: $sort\n", E_USER_WARNING);
+				default:
+					trigger_error('ERROR in Function >>'.__FUNCTION__."()<< - not implementet sort method: $sort\n", E_USER_WARNING);
+			}
 		}
 	}
 
