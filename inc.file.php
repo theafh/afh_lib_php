@@ -1,4 +1,4 @@
-<? 
+<?php
 
 // trigger_mode default is E_USER_ERROR and this parameter is optional. other options from 
 // E_USER family of constants are (E_USER_WARNING and E_USER_NOTICE) see:

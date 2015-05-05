@@ -1,4 +1,4 @@
-<?
+<?php
 
 //helper function to enshure EXACT one trailing slash in path
 function helper_add_trailing_slash($base){

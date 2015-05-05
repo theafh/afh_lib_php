@@ -1,4 +1,4 @@
-<?
+<?php
 
 // Testing if a string is UTF8 encoded
 function is_utf8($str){
