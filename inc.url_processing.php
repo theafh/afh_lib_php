@@ -1,12 +1,11 @@
 <?php
 
+// quick check if a string COULD be an URL
 function is_url($url){
-	$regex  = "((https?|ftp)\:\/\/)"; // SCHEME
+	$regex  = "(([a-z]+)(\:)([\/]{1,3})?)"; // SCHEME
 	$regex .= "([a-z0-9+!*(),;?&=\$_.-]+(\:[a-z0-9+!*(),;?&=\$_.-]+)?@)?"; // User and Pass
-	//$regex .= "([a-z0-9-.]*)\.([a-z]{2,3}\/)"; // Host or IP
 	$regex .= "([a-z0-9-\.]*)"; // Host or IP
 	$regex .= "(\:[0-9]{2,5})?"; // Port
-	//$regex .= "(([a-z0-9+\$_-]\.?)+)*\/?"; // Path
 	$regex .= "\/([,%\.\/a-z0-9+\$_-])*?"; // Path
 	$regex .= "(\?[a-z+&\$_.-][a-z0-9;:@&%=+\/\$_.-]*)?"; // GET Query
 	$regex .= "(#[a-z_.-][a-z0-9+\$_.-]*)?"; // Anchor
@@ -20,7 +19,28 @@ function is_url($url){
 
 }
 
-function canonicalize_url($url,$target_scheme='http',$target_host=null){
+// quick check if a string COULD be an IP-adress
+function is_ip ($ip, $ip_v=4){
+
+        switch($ip_v){
+                case 4:
+		if (preg_match("/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/",$ip)){
+                        return true;
+		}
+                break;
+
+                case 6:
+		if (preg_match("/([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?/i",$ip)){
+                        return true;
+		}
+                break;
+        }   
+        return false;
+}
+
+function canonicalize_url($url,$target_scheme=null,$target_host=null){
+
+	$ret_arr['original_url'] = $url;
 
 	// handling of providet scheme and host
 	if($target_scheme != strtolower($target_scheme)){
@@ -55,7 +75,11 @@ function canonicalize_url($url,$target_scheme='http',$target_host=null){
 	}
 
 	if(!isset($url_parts['scheme'])){
-		if(strpos($url,'://') === 0){
+		if(strpos($url,'://') === 0 && $target_scheme == null){
+			$url_parts         = parse_url('http'.$url);
+			$new_url           = 'http'.'://';
+		}
+		else if(strpos($url,'://') === 0 && $target_scheme != null){
 			$url_parts         = parse_url($target_scheme.$url);
 			$new_url           = $target_scheme.'://';
 		}
@@ -66,7 +90,7 @@ function canonicalize_url($url,$target_scheme='http',$target_host=null){
 	}
 	else{
 		$tmp_scheme = strtolower($url_parts['scheme']);
-		if($tmp_scheme != $target_scheme){
+		if($tmp_scheme != $target_scheme && $target_scheme != null){
 			$url_parts['scheme'] = $target_scheme;
 			$ret_arr['status'] = 'repaird';
 		}
@@ -113,6 +137,7 @@ function canonicalize_url($url,$target_scheme='http',$target_host=null){
 		}
 	}
 
+	/*
 	if(preg_match('/[^a-z0-9\.-]+/', $url_parts['host'],$matches)){
 		//print_r($matches);
 		//echo $url_parts['host']."\n";
@@ -142,6 +167,7 @@ function canonicalize_url($url,$target_scheme='http',$target_host=null){
 			return $ret_arr;
 		}
 	}
+	*/
 
 	$new_url .= $url_parts['host'];
 	// end host handling
@@ -221,7 +247,6 @@ function canonicalize_url($url,$target_scheme='http',$target_host=null){
 
 	//setting status & results
 	$ret_arr['return_url']   = $new_url;
-	$ret_arr['original_url'] = $url;
 
 	if($new_url == $url && !isset($ret_arr['err'])){
 		$ret_arr['status'] = 'ok';
