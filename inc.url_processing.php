@@ -1,15 +1,17 @@
-<?
+<?php
 
 function is_url($url){
 	$regex  = "((https?|ftp)\:\/\/)"; // SCHEME
 	$regex .= "([a-z0-9+!*(),;?&=\$_.-]+(\:[a-z0-9+!*(),;?&=\$_.-]+)?@)?"; // User and Pass
-	$regex .= "([a-z0-9-.]*)\.([a-z]{2,3}\/)"; // Host or IP
+	//$regex .= "([a-z0-9-.]*)\.([a-z]{2,3}\/)"; // Host or IP
+	$regex .= "([a-z0-9-\.]*)"; // Host or IP
 	$regex .= "(\:[0-9]{2,5})?"; // Port
-	$regex .= "(([a-z0-9+\$_-]\.?)+)*\/?"; // Path
+	//$regex .= "(([a-z0-9+\$_-]\.?)+)*\/?"; // Path
+	$regex .= "\/([,%\.\/a-z0-9+\$_-])*?"; // Path
 	$regex .= "(\?[a-z+&\$_.-][a-z0-9;:@&%=+\/\$_.-]*)?"; // GET Query
 	$regex .= "(#[a-z_.-][a-z0-9+\$_.-]*)?"; // Anchor
 
-	if(preg_match("/^$regex$/", $url)){
+	if(preg_match("/^$regex$/iUs", $url)){
 		return true;
 	}
 	else{
@@ -18,9 +20,20 @@ function is_url($url){
 
 }
 
-function validate_and_fix_url($url){
+function canonicalize_url($url,$target_scheme='http',$target_host=null){
 
+	// handling of providet scheme and host
+	if($target_scheme != strtolower($target_scheme)){
+		trigger_error("WARNING in function canonicalize_url(): \$target_scheme should be lower case! \n", E_USER_WARNING);
+		$target_scheme = strtolower($target_scheme);		
+	}
 
+	if($target_host != null && $target_host != strtolower($target_host)){
+		trigger_error("WARNING in function canonicalize_url(): \$target_host should be lower case! \n", E_USER_WARNING);
+		$target_host = strtolower($target_host);		
+	}
+
+	//initial url parsing
         $url_parts = parse_url($url);
 	//print_r($url_parts);
 
@@ -43,28 +56,33 @@ function validate_and_fix_url($url){
 
 	if(!isset($url_parts['scheme'])){
 		if(strpos($url,'://') === 0){
-			$url_parts         = parse_url('http'.$url);
-			$new_url           = 'http://';
+			$url_parts         = parse_url($target_scheme.$url);
+			$new_url           = $target_scheme.'://';
 		}
 		else{
-			$url_parts         = parse_url('http://'.$url);
-			$new_url           = 'http://';
+			$url_parts         = parse_url($target_scheme.'://'.$url);
+			$new_url           = $target_scheme.'://';
 		}
 	}
 	else{
 		$tmp_scheme = strtolower($url_parts['scheme']);
-		if($tmp_scheme != $url_parts['scheme']){
-			$url_parts['scheme'] = $tmp_scheme;
+		if($tmp_scheme != $target_scheme){
+			$url_parts['scheme'] = $target_scheme;
+			$ret_arr['status'] = 'repaird';
 		}
-		$new_url = $tmp_scheme.'://';
+		else if($tmp_scheme != $url_parts['scheme']){
+			$url_parts['scheme'] = $tmp_scheme;
+			$ret_arr['status'] = 'repaird';
+		}
+		$new_url = $url_parts['scheme'].'://';
 	}
 
-	if(preg_match("/^https?|ftp/iUs", $new_url) === false){
+	if(preg_match("/^https?|ftp\:\/\//iUs", $new_url) === false){
 		$ret_arr['err'][]  = 'No scheme could be found!';
 		$ret_arr['status'] = 'broken';
 		return $ret_arr;
 	}
-	// END - scheme
+	// END - scheme processing
 
 	//user:pass
 	if(isset($url_parts['user']) && isset($url_parts['pass'])){
@@ -72,15 +90,26 @@ function validate_and_fix_url($url){
 	}
 
 	// beginn host handling
-	if(!isset($url_parts['host'])){
+	if($target_host == null && !isset($url_parts['host'])){
 		$ret_arr['err'][]  = 'No host could be identified!';
 		$ret_arr['status'] = 'broken';
 		return $ret_arr;
 	}
 	else{
-		$tmp_host = strtolower($url_parts['host']);
-		if($tmp_host != $url_parts['host']){
+		if(isset($url_parts['host'])){
+			$tmp_host = strtolower($url_parts['host']);
+		}
+		else{
+			$tmp_host = '';
+		}
+
+		if($target_host != null && $tmp_host != $target_host){
+			$url_parts['host'] = $target_host;
+			$ret_arr['status'] = 'repaird';
+		}
+		else if($tmp_host != $url_parts['host']){
 			$url_parts['host'] = $tmp_host;
+			$ret_arr['status'] = 'repaird';
 		}
 	}
 
