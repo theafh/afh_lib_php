@@ -1,8 +1,111 @@
 <?php
 
-// quick check if a string COULD be an URL
+// quick check if a string is an valid URL
 function is_url($url){
-	$regex  = "(([a-z]+)(\:)([\/]{1,3})?)"; // SCHEME
+	if(filter_var($url, FILTER_VALIDATE_URL, FILTER_FLAG_SCHEME_REQUIRED | FILTER_FLAG_HOST_REQUIRED | FILTER_FLAG_PATH_REQUIRED) === false){
+		// if the host is an IPv6 Address FILTER_VALIDATE_URL fails
+
+		//get url parts as array
+		$url_parts  = parse_url($url);
+
+		if(!isset($url_parts['host'])){
+			return false;
+		}
+		//if match contains illigal characters it could be an IPv6 Address
+		else if(preg_match('/^\[([a-f0-9\:]+)\]$/iUs', $url_parts['host'],$matches)){
+			if(!is_ip($matches[1],6)){
+				return false;
+			}
+		}
+		else{
+			return false;
+		}
+	}
+
+	//a valid URL schould be encoded in ASCII
+	// testet with FILTER_VALIDATE_URL
+	/*
+	if(mb_detect_encoding($url, 'ASCII', true) === false){
+		return false;
+	}
+	*/
+
+	//get url parts as array
+	$url_parts  = parse_url($url);
+
+	//test if scheme exists and is supported
+	//$schemes = array('http','https','ftp','mailto','news','irc','tel','git','file','bitcoin','magnet','skype','sms','xmpp');
+	$schemes = array('http','https','ftp');
+
+	/*
+	// testetd in FILTER_VALIDATE_URL
+	if(!isset($url_parts['scheme'])){
+		return false;
+	}
+	else if(!in_array(strtolower($url_parts['scheme']),$schemes)){
+	*/
+
+	if(!in_array(strtolower($url_parts['scheme']),$schemes)){
+		return false;
+	}
+
+
+	//test the host
+
+	/*
+	// allredy testet with FILTER_VALIDATE_URL
+
+	if(!isset($url_parts['host'])){
+		return false;
+	}
+
+	if(preg_match('/[^a-z0-9\.-]+/', $url_parts['host'])){
+		//if match contains illigal characters it could be an IPv6 Address
+		if(preg_match('/^\[([a-f0-9\:]+)\]$/', $url_parts['host'],$matches)){
+			if(!is_ip($matches[1],6)){
+				return false;
+			}
+		}
+		else{
+			return false;
+		}
+	}
+	*/
+
+	//a host name is not allowed to have more than 255 chracters
+	$host_len = strlen($url_parts['host']);
+	if($host_len > 255){
+		return false;
+	}
+
+	$host_labels = explode('.',$url_parts['host']);
+	foreach($host_labels AS $label){
+		$label_len = strlen($label);
+		//a hostlabe is not allowed to have more than 63 characters
+		if($label_len > 63){
+			return false;
+		}
+		// a hostlabel must at least have one character
+		else if($label_len < 1){
+			return false;
+		}
+	}
+
+	/*
+	// allredy testet with FILTER_VALIDATE_URL
+	if(!isset($url_parts['path'])){
+		return false;
+	}
+	*/
+
+	// if nothing is wrong, return true
+	return true;
+
+
+	/*
+	   // old limited validation via REGEXP
+
+	$regex  = "(([a-z]+)(\:)([\/]{0,3})?)"; // SCHEME
 	$regex .= "([a-z0-9+!*(),;?&=\$_.-]+(\:[a-z0-9+!*(),;?&=\$_.-]+)?@)?"; // User and Pass
 	$regex .= "([a-z0-9-\.]*)"; // Host or IP
 	$regex .= "(\:[0-9]{2,5})?"; // Port
@@ -16,7 +119,7 @@ function is_url($url){
 	else{
 		return false;
 	}
-
+	*/
 }
 
 // check if a string is a valid IP address
@@ -72,7 +175,6 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 			$element = trim($element);
 			if($element != '' && $element != ':' && $element != '/' && $element != 'http' && $element != 'http:' && $element != 'https' && $element != 'https:'){
 				$new_url .= $element;
-				//echo '$element: '.$element."\n";
 			}
 		}
 		$new_url   = $tmp_scheme_arr[0].'://'.$new_url;
@@ -109,7 +211,7 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 	}
 
 	if(preg_match("/^https?|ftp\:\/\//iUs", $new_url) === false){
-		$ret_arr['err'][]  = 'No scheme could be found!';
+		$ret_arr['err'][]  = 'No supported scheme could be found!';
 		$ret_arr['status'] = 'broken';
 		return $ret_arr;
 	}
@@ -143,38 +245,6 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 			$ret_arr['status'] = 'repaird';
 		}
 	}
-
-	/*
-	if(preg_match('/[^a-z0-9\.-]+/', $url_parts['host'],$matches)){
-		//print_r($matches);
-		//echo $url_parts['host']."\n";
-		$ret_arr['err'][]  = 'Hostname ('.$url_parts['host'].') has illegal characters!';
-		$ret_arr['status'] = 'broken';
-		return $ret_arr;
-	}
-
-	$host_len = strlen($url_parts['host']);
-	if($host_len > 255){
-		$ret_arr['err'][]  = 'Hostname has more than 255 characters: '.$host_len.'!';
-		$ret_arr['status'] = 'broken';
-		return $ret_arr;
-	}
-
-	$host_labels = explode('.',$url_parts['host']);
-	foreach($host_labels AS $label){
-		$label_len = strlen($label);
-		if($label_len > 63){
-			$ret_arr['err'][]  = 'Hostlabel ('.$label.') has more than 63 characters: '.$label_len.'!';
-			$ret_arr['status'] = 'broken';
-			return $ret_arr;
-		}
-		else if($label_len < 1){
-			$ret_arr['err'][]  = 'A hostlabel must at least have one character!';
-			$ret_arr['status'] = 'broken';
-			return $ret_arr;
-		}
-	}
-	*/
 
 	$new_url .= $url_parts['host'];
 	// end host handling
@@ -251,6 +321,18 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 	$new_url = str_replace('%2C',',',$new_url);
 	$new_url = str_replace('%2A',':',$new_url);
 	$new_url = str_replace('%2B',';',$new_url);
+
+
+	if(!is_url($new_url)){
+		if($new_url == $url){
+			$ret_arr['err'][]  = 'URL could not be repaird and validated';
+		}
+		else{
+			$ret_arr['err'][]  = 'repaird URL could not be validated';
+		}
+		$ret_arr['status'] = 'broken';
+		return $ret_arr;
+	}
 
 	//setting status & results
 	$ret_arr['return_url']   = $new_url;
