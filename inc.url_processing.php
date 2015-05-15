@@ -19,21 +19,28 @@ function is_url($url){
 
 }
 
-// quick check if a string COULD be an IP-adress
-function is_ip ($ip, $ip_v=4){
+// check if a string is a valid IP address
+// the optional parameter $ip_v could be set to 0 (ipv4 OR ipv6), 4 (only valid in ipv4) and 6 (ipv6)
+function is_ip ($ip, $ip_v=0){
 
         switch($ip_v){
+                case 0:
+			if (filter_var($ip, FILTER_VALIDATE_IP)){
+				return true;
+			}
+                break;
+
                 case 4:
-		if (preg_match("/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/",$ip)){
-                        return true;
-		}
+			if (filter_var($ip, FILTER_VALIDATE_IP,FILTER_FLAG_IPV4)){
+				return true;
+			}
                 break;
 
                 case 6:
-		if (preg_match("/([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?\:([0-9a-z]{1,4})?/i",$ip)){
-                        return true;
-		}
-                break;
+			if (filter_var($ip, FILTER_VALIDATE_IP,FILTER_FLAG_IPV6)){
+				return true;
+			}
+		break;
         }   
         return false;
 }
