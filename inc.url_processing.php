@@ -1,102 +1,92 @@
 <?php
 
+require_once(AFH_LIB_PATH.'inc.debug.php');
+
 // quick check if a string is an valid URL
-function is_url($url){
-	if(filter_var($url, FILTER_VALIDATE_URL, FILTER_FLAG_SCHEME_REQUIRED | FILTER_FLAG_HOST_REQUIRED | FILTER_FLAG_PATH_REQUIRED) === false){
-		// if the host is an IPv6 Address FILTER_VALIDATE_URL fails
-
-		//get url parts as array
-		$url_parts  = parse_url($url);
-
-		if(!isset($url_parts['host'])){
-			return false;
-		}
-		//if match contains illigal characters it could be an IPv6 Address
-		else if(preg_match('/^\[([a-f0-9\:]+)\]$/iUs', $url_parts['host'],$matches)){
-			if(!is_ip($matches[1],6)){
-				return false;
-			}
-		}
-		else{
-			return false;
-		}
-	}
-
-	//a valid URL schould be encoded in ASCII
-	// testet with FILTER_VALIDATE_URL
-	/*
-	if(mb_detect_encoding($url, 'ASCII', true) === false){
-		return false;
-	}
-	*/
-
+function is_url($url,$strict=false,$verbosity=NULL){
 	//get url parts as array
 	$url_parts  = parse_url($url);
 
-	//test if scheme exists and is supported
-	//$schemes = array('http','https','ftp','mailto','news','irc','tel','git','file','bitcoin','magnet','skype','sms','xmpp');
-	$schemes = array('http','https','ftp');
-
-	/*
-	// testetd in FILTER_VALIDATE_URL
-	if(!isset($url_parts['scheme'])){
-		return false;
-	}
-	else if(!in_array(strtolower($url_parts['scheme']),$schemes)){
-	*/
-
-	if(!in_array(strtolower($url_parts['scheme']),$schemes)){
-		return false;
-	}
-
-
-	//test the host
-
-	/*
-	// allredy testet with FILTER_VALIDATE_URL
-
+	// break if no HOST or no SCHEME exists
 	if(!isset($url_parts['host'])){
+		verbose('No host found in URL',$verbosity);
+		return false;
+	}
+	else if(!isset($url_parts['scheme'])){
+		verbose('No scheme found in URL',$verbosity);
 		return false;
 	}
 
-	if(preg_match('/[^a-z0-9\.-]+/', $url_parts['host'])){
-		//if match contains illigal characters it could be an IPv6 Address
-		if(preg_match('/^\[([a-f0-9\:]+)\]$/', $url_parts['host'],$matches)){
+	// if strict setting
+	if($strict == true){
+		verbose('URL validation is "strict"',$verbosity);
+
+		//a valid URL should be encoded in ASCII
+		if(mb_detect_encoding($url, 'ASCII', true) === false){
+			verbose('A valid URL must be encoded in ASCII',$verbosity);
+			return false;
+		}
+
+		//the URL will not validate if HOST or SCHEME are upper case
+	        if($url_parts['host'] != strtolower($url_parts['host'])){		
+			verbose('Host is upper case',$verbosity);
+			return false;
+		}
+		else if($url_parts['scheme'] != strtolower($url_parts['scheme'])){		
+			verbose('Scheme is upper case',$verbosity);
+			return false;
+		}
+
+		//test if SCHEME is supported
+		//$schemes = array('http','https','ftp','mailto','news','irc','tel','git','file','bitcoin','magnet','skype','sms','xmpp');
+		$schemes = array('http','https','ftp');
+
+		if(!in_array(strtolower($url_parts['scheme']),$schemes)){
+			verbose('Scheme is not supported: '.$url_parts['scheme'],$verbosity);
+			return false;
+		}
+
+		if(!isset($url_parts['path'])){
+			verbose('A URL must include a PATH',$verbosity);
+			return false;
+		}
+	}
+
+	if(preg_match('/[^a-z0-9\.-]+/i', $url_parts['host'])){
+		// if the host is an IPv6 Address FILTER_VALIDATE_URL fails!!
+		// if match contains illigal characters it could be an IPv6 Address
+		if(preg_match('/^\[([a-f0-9\:]+)\]$/i', $url_parts['host'],$matches)){
 			if(!is_ip($matches[1],6)){
+				verbose('Host is not a valid IPv6 Address',$verbosity);
 				return false;
 			}
 		}
 		else{
+			verbose('Host contains illigal characters',$verbosity);
 			return false;
 		}
 	}
-	*/
 
-	//a host name is not allowed to have more than 255 chracters
+	//test the host
+
 	$host_len = strlen($url_parts['host']);
 	if($host_len > 255){
+		verbose('A host name is not allowed to have more than 255 chracters',$verbosity);
 		return false;
 	}
 
 	$host_labels = explode('.',$url_parts['host']);
 	foreach($host_labels AS $label){
 		$label_len = strlen($label);
-		//a hostlabe is not allowed to have more than 63 characters
 		if($label_len > 63){
+			verbose('A hostlable is not allowed to have more than 63 characters',$verbosity);
 			return false;
 		}
-		// a hostlabel must at least have one character
 		else if($label_len < 1){
+			verbose('A hostlabel must at least have one character',$verbosity);
 			return false;
 		}
 	}
-
-	/*
-	// allredy testet with FILTER_VALIDATE_URL
-	if(!isset($url_parts['path'])){
-		return false;
-	}
-	*/
 
 	// if nothing is wrong, return true
 	return true;
