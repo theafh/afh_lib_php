@@ -2,7 +2,7 @@
 
 require_once(AFH_LIB_PATH.'inc.debug.php');
 
-// quick check if a string is an valid URL
+// check if a string is an valid URL
 function is_url($url,$strict=false,$verbosity=NULL){
 	//get url parts as array
 	$url_parts  = parse_url($url);
@@ -21,13 +21,11 @@ function is_url($url,$strict=false,$verbosity=NULL){
 	if($strict == true){
 		verbose('URL validation is "strict"',$verbosity);
 
-		//a valid URL should be encoded in ASCII
 		if(mb_detect_encoding($url, 'ASCII', true) === false){
 			verbose('A valid URL must be encoded in ASCII',$verbosity);
 			return false;
 		}
 
-		//the URL will not validate if HOST or SCHEME are upper case
 	        if($url_parts['host'] != strtolower($url_parts['host'])){		
 			verbose('Host is upper case',$verbosity);
 			return false;
