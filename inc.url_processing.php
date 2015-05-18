@@ -36,6 +36,7 @@ function is_url($url,$strict=false,$verbosity=NULL){
 		}
 
 		//test if SCHEME is supported
+		// list of official schemes: http://en.wikipedia.org/wiki/URI_scheme#Official_IANA-registered_schemes
 		//$schemes = array('http','https','ftp','mailto','news','irc','tel','git','file','bitcoin','magnet','skype','sms','xmpp');
 		$schemes = array('http','https','ftp');
 
@@ -48,20 +49,21 @@ function is_url($url,$strict=false,$verbosity=NULL){
 			verbose('A URL must include a PATH',$verbosity);
 			return false;
 		}
-	}
 
-	if(preg_match('/[^a-z0-9\.-]+/i', $url_parts['host'])){
-		// if the host is an IPv6 Address FILTER_VALIDATE_URL fails!!
-		// if match contains illigal characters it could be an IPv6 Address
-		if(preg_match('/^\[([a-f0-9\:]+)\]$/i', $url_parts['host'],$matches)){
-			if(!is_ip($matches[1],6)){
-				verbose('Host is not a valid IPv6 Address',$verbosity);
+		// in strict mode only ASCII are allowed in host (what is with PATH and QUERY?)
+		if(preg_match('/[^a-z0-9\.-]+/i', $url_parts['host'])){
+			// if the host is an IPv6 Address FILTER_VALIDATE_URL fails!!
+			// if match contains illigal characters it could be an IPv6 Address
+			if(preg_match('/^\[([a-f0-9\:]+)\]$/i', $url_parts['host'],$matches)){
+				if(!is_ip($matches[1],6)){
+					verbose('Host is not a valid IPv6 Address',$verbosity);
+					return false;
+				}
+			}
+			else{
+				verbose('Host contains illigal characters',$verbosity);
 				return false;
 			}
-		}
-		else{
-			verbose('Host contains illigal characters',$verbosity);
-			return false;
 		}
 	}
 
@@ -136,6 +138,8 @@ function is_ip ($ip, $ip_v=0){
         return false;
 }
 
+
+// this function could be further refined with ideas from here: http://en.wikipedia.org/wiki/URL_normalization
 function canonicalize_url($url,$target_scheme=null,$target_host=null){
 
 	$ret_arr['original_url'] = $url;
@@ -153,50 +157,65 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 
 	//initial url parsing
         $url_parts = parse_url($url);
-	//print_r($url_parts);
-
-	//BEGIN scheme and start of URL handling 
-	$tmp_scheme_arr = explode('://',$url);
-	if(count($tmp_scheme_arr) > 2){
-		$new_url = '';
-		foreach($tmp_scheme_arr AS $element){
-			$element = trim($element);
-			if($element != '' && $element != ':' && $element != '/' && $element != 'http' && $element != 'http:' && $element != 'https' && $element != 'https:'){
-				$new_url .= $element;
-			}
-		}
-		$new_url   = $tmp_scheme_arr[0].'://'.$new_url;
-		$new_url   = str_replace($tmp_scheme_arr[0].':///',$tmp_scheme_arr[0].'://',$new_url);
-		$url_parts = parse_url($new_url);
-		unset($new_url);
-	}
 
 	if(!isset($url_parts['scheme'])){
-		if(strpos($url,'://') === 0 && $target_scheme == null){
-			$url_parts         = parse_url('http'.$url);
-			$new_url           = 'http'.'://';
+		if($target_scheme == null){
+			$url_parts['scheme'] = 'http';
+			$ret_arr['status']   = 'repaird';
 		}
-		else if(strpos($url,'://') === 0 && $target_scheme != null){
-			$url_parts         = parse_url($target_scheme.$url);
-			$new_url           = $target_scheme.'://';
+		else if($target_scheme != null){
+			$url_parts['scheme'] = $target_scheme;
+			$ret_arr['status']   = 'repaird';
 		}
+
+		// if URL was without scheme but was correctetd with this step
+		// if url starts with "://"
+		if(strpos($url,'://') === 0){
+			$tmp_url = $url_parts['scheme'].$url;
+		}
+		// without scheme and "://"
 		else{
-			$url_parts         = parse_url($target_scheme.'://'.$url);
-			$new_url           = $target_scheme.'://';
+			$tmp_url = $url_parts['scheme'].'://'.$url;
+		}
+
+		// reparse if it could now be validated with added scheme (not strict)
+		if(is_url($tmp_url)){
+			$url_parts = parse_url($tmp_url);
 		}
 	}
 	else{
-		$tmp_scheme = strtolower($url_parts['scheme']);
-		if($tmp_scheme != $target_scheme && $target_scheme != null){
+		// "scheme right trim"
+		$s          = 0;
+		$scheme_str = $url_parts['scheme'].'://';
+		$slen       = strlen ($scheme_str);
+		$tmp_url    = $url;
+		do {
+			$tmp_url = substr($tmp_url,$slen);
+			$s++;
+		} while (stripos($tmp_url,$scheme_str) === 0);
+
+		if($s > 1){
+			$tmp_url = $scheme_str.$tmp_url;
+			// reparse if it could now be validated with added scheme (not strict)
+			if(is_url($tmp_url)){
+				$url_parts = parse_url($tmp_url);
+			}
+		}
+
+		// scheme replacement / fixing
+		if($target_scheme != null){
 			$url_parts['scheme'] = $target_scheme;
-			$ret_arr['status'] = 'repaird';
+			$ret_arr['status']   = 'repaird';
 		}
-		else if($tmp_scheme != $url_parts['scheme']){
-			$url_parts['scheme'] = $tmp_scheme;
-			$ret_arr['status'] = 'repaird';
+		else if($url_parts['scheme'] != strtolower($url_parts['scheme'])){
+			$url_parts['scheme'] = strtolower($url_parts['scheme']);
+			$ret_arr['status']   = 'repaird';
 		}
-		$new_url = $url_parts['scheme'].'://';
+
 	}
+
+	$new_url = $url_parts['scheme'].'://';
+
 
 	if(preg_match("/^https?|ftp\:\/\//iUs", $new_url) === false){
 		$ret_arr['err'][]  = 'No supported scheme could be found!';
@@ -211,27 +230,21 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 	}
 
 	// beginn host handling
+	// there should be tests / conversion from / to Punycode / check non ascii characters
+	// see: http://php.net/manual/de/function.idn-to-utf8.php
+
 	if($target_host == null && !isset($url_parts['host'])){
 		$ret_arr['err'][]  = 'No host could be identified!';
 		$ret_arr['status'] = 'broken';
 		return $ret_arr;
 	}
-	else{
-		if(isset($url_parts['host'])){
-			$tmp_host = strtolower($url_parts['host']);
-		}
-		else{
-			$tmp_host = '';
-		}
-
-		if($target_host != null && $tmp_host != $target_host){
-			$url_parts['host'] = $target_host;
-			$ret_arr['status'] = 'repaird';
-		}
-		else if($tmp_host != $url_parts['host']){
-			$url_parts['host'] = $tmp_host;
-			$ret_arr['status'] = 'repaird';
-		}
+	else if($target_host != null){
+		$url_parts['host'] = $target_host;
+		$ret_arr['status'] = 'repaird';
+	}
+	else if($url_parts['host'] != strtolower($url_parts['host'])){
+		$url_parts['host'] = strtolower($url_parts['host']);
+		$ret_arr['status'] = 'repaird';
 	}
 
 	$new_url .= $url_parts['host'];
@@ -311,7 +324,7 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 	$new_url = str_replace('%2B',';',$new_url);
 
 
-	if(!is_url($new_url)){
+	if(!is_url($new_url,true)){
 		if($new_url == $url){
 			$ret_arr['err'][]  = 'URL could not be repaird and validated';
 		}
