@@ -64,10 +64,14 @@ function afh_mysql_fetch_rows($link,$sql){
 		return $ret_arr;
 	}
 	else{
-		//trigger_error("afh_mysql_send feild!! ERROR MSG:\n".mysqli_connect_error()."\n", $trigger_mode);
+		//trigger_error("afh_mysql_send feild!! ERROR MSG:\n".mysqli_error($link)."\n", E_USER_WARNING);
 		return false;
 	}
 
+}
+
+function afh_mysql_fetch_error_str($link){
+	return mysqli_error($link);
 }
 
 ?>
