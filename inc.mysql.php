@@ -38,6 +38,7 @@ function afh_mysql_fetch_rows($link,$sql){
 		$data       = mysqli_stmt_result_metadata($stmt);
 		$fields_arr = array();
 		$out        = array();
+		$ret_arr    = array();
 
 		//build field array
 		$f             = 1;
