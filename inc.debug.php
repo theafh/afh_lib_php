@@ -1,5 +1,5 @@
 <?
-require_once($GLOBALS['AFH_LIB_PATH']."inc.afh_lib_php_conf.php");
+require_once(AFH_LIB_PATH.'inc.afh_lib_php_conf.php');
 
 /*
    for using the debug familie of functions in the head (bevor inclusion of lib, a global variable has to be set:
