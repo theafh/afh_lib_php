@@ -145,4 +145,34 @@ function get_dir_list_array ($dir,$type='all',$extension=false,$sort=false){
 	return $files;
 }	
 
+// this function builds an folder structure /1/12/1234...9 - based on md5-sum (for caching or universal storage)
+function return_md5_path ($base,$md5,$create = true){
+
+        $base = trim($base);
+        $md5  = trim($md5); 
+
+        if($base == '' || $md5 == ''){
+                return false;
+        }   
+
+	// only absolute paths
+        if($base[0] == '.'){
+                return false;
+        }   
+
+        $base = helper_add_trailing_slash($base);
+
+        $path = $base.$md5[0].'/'.$md5[0].$md5[1].'/';
+        if(!is_dir($path) && $create === true){
+                mkdir($path,0777,true); // create all child folers + including access privileges
+
+		if(defined('AFH_FILE_GRP') && constant('AFH_FILE_GRP') !== false){
+			@chgrp($base.$md5[0],'worker');
+			@chgrp($base.$md5[0].'/'.$md5[0].$md5[1],'worker');
+		}
+        }   
+    
+        return $path;
+}
+
 ?>
