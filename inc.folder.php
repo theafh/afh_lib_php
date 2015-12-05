@@ -164,7 +164,11 @@ function return_md5_path ($base,$md5,$create = true){
 
         $path = $base.$md5[0].'/'.$md5[0].$md5[1].'/';
         if(!is_dir($path) && $create === true){
-                mkdir($path,0777,true); // create all child folers + including access privileges
+		//BUG! access privileges are not set correctly recursive!!!!
+                mkdir($path,0775,true); // create all child folers (+ including access privileges -> bug...)
+
+		chmod($base.$md5[0],0775);
+		chmod($base.$md5[0].'/'.$md5[0].$md5[1],0775);
 
 		if(defined('AFH_FILE_GRP') && constant('AFH_FILE_GRP') !== false){
 			@chgrp($base.$md5[0],'worker');
