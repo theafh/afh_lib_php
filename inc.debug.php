@@ -1,6 +1,17 @@
 <?
 require_once(AFH_LIB_PATH.'inc.afh_lib_php_conf.php');
 
+function verbose($msg,$verbosity=NULL){
+        if(!is_null($verbosity)){
+	        if($verbosity === true){
+			echo $msg."\n";
+		}
+		else if($verbosity == 'html'){
+			echo $msg."<br>\n";
+		}
+        }
+}
+
 /*
    for using the debug familie of functions in the head (bevor inclusion of lib, a global variable has to be set:
    $GLOBALS['DEBUG'] = true;            -> debug is used and output is ASCII only (for command line tools)
