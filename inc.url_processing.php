@@ -2,6 +2,9 @@
 
 require_once(AFH_LIB_PATH.'inc.debug.php');
 
+define('VALID_URL_CHAR_STRICT',"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789;/?:@&=+$,-_.!~*'()");
+define('VALID_URL_CHAR',"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789;/?:@&=+$,-_.!~*'(){}|\\^[]`");
+
 // check if a string is an valid URL
 function is_url($url,$strict=false,$verbosity=NULL){
 	//get url parts as array
@@ -21,10 +24,15 @@ function is_url($url,$strict=false,$verbosity=NULL){
 	if($strict == true){
 		verbose('URL validation is "strict"',$verbosity);
 
-		if(mb_detect_encoding($url, 'ASCII', true) === false){
-			verbose('A valid URL must be encoded in ASCII',$verbosity);
+		if (strlen($url) != strspn($url,VALID_URL_CHAR_STRICT)){ //NEW
+			verbose('Invalid URL Characters',$verbosity);
 			return false;
 		}
+
+		//if(mb_detect_encoding($url, 'ASCII', true) === false){ //OLD
+		//	verbose('A valid URL must be encoded in ASCII',$verbosity);
+		//	return false;
+		//}
 
 	        if($url_parts['host'] != strtolower($url_parts['host'])){		
 			verbose('Host is upper case',$verbosity);
@@ -54,7 +62,7 @@ function is_url($url,$strict=false,$verbosity=NULL){
 		if(preg_match('/[^a-z0-9\.-]+/i', $url_parts['host'])){
 			// if the host is an IPv6 Address FILTER_VALIDATE_URL fails!!
 			// if match contains illigal characters it could be an IPv6 Address
-			if(preg_match('/^\[([a-f0-9\:]+)\]$/i', $url_parts['host'],$matches)){
+			if(preg_match('/^\[([a-f0-9\:\.]+)\]$/i', $url_parts['host'],$matches)){
 				if(!is_ip($matches[1],6)){
 					verbose('Host is not a valid IPv6 Address',$verbosity);
 					return false;
@@ -64,6 +72,19 @@ function is_url($url,$strict=false,$verbosity=NULL){
 				verbose('Host contains illigal characters',$verbosity);
 				return false;
 			}
+		}
+		
+		if(preg_match('/[^0-9\.]+/', $url_parts['host'])){ //NEW
+			if(!is_ip($matches[1],4)){
+				verbose('Host is not a valid IPv4 Address',$verbosity);
+				return false;
+			}
+		}
+	}
+	else{ //NEW
+		if (strlen($url) != strspn($url,VALID_URL_CHAR)){ //NEW
+			verbose('Invalid URL Characters',$verbosity);
+			return false;
 		}
 	}
 
@@ -217,17 +238,25 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 	$new_url = $url_parts['scheme'].'://';
 
 
+	//to aggressive non HTTP, HTTPS, FTP - URLs are not broken per see
+	// by the way the fail anyway in the final, strict is_url() - test in the end but without extra warning and after some more code execution
+	//this break cluld make sense to save execution time
+	/*
 	if(preg_match("/^https?|ftp\:\/\//iUs", $new_url) === false){
 		$ret_arr['err'][]  = 'No supported scheme could be found!';
 		$ret_arr['status'] = 'broken';
 		return $ret_arr;
 	}
+	*/
 	// END - scheme processing
 
 	//user:pass
+	// user and password should be removed for canonalisation!
+	/*
 	if(isset($url_parts['user']) && isset($url_parts['pass'])){
 		$new_url .= $url_parts['user'].':'.$url_parts['pass'].'@';
 	}
+	*/
 
 	// beginn host handling
 	// there should be tests / conversion from / to Punycode / check non ascii characters
@@ -238,7 +267,11 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 		$ret_arr['status'] = 'broken';
 		return $ret_arr;
 	}
-	else if($target_host != null){
+	else if($target_host != null && !isset($url_parts['host'])){
+		$url_parts['host'] = $target_host;
+		$ret_arr['status'] = 'repaird';
+	}
+	else if($target_host != null && $target_host != $url_parts['host']){
 		$url_parts['host'] = $target_host;
 		$ret_arr['status'] = 'repaird';
 	}
@@ -271,6 +304,7 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 	if(!isset($url_parts['path'])){
 		$url_parts['path'] = '/';
 	}
+	/* ALMOST PHILOSOPHICAL: it is very agressive to change the path elements! the URLs are not the same!
 	else if(preg_match('/[^a-zA-Z0-9\.\/-_~]+/', $url_parts['path'],$matches)){
 		//print_r($matches);
 		do{	
@@ -285,18 +319,17 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 		}
 		$url_parts['path'] = implode($new_path_elements,'/');
 	}
-
+	*/
 	$new_url .= $url_parts['path'];
 
 	//query
+	/* ALMOST PHILOSOPHICAL: query parameter in different order are identical if answerd by a dynamic process, but if the URLs are virtualized they are not the same!
 	if(isset($url_parts['query'])){
 		if(strpos($url_parts['query'],'&') !== false){
-			/*
-			do{	
-				$url_parts['query'] = urldecode($url_parts['query']);
-				$tmp_query          = $url_parts['query'];
-			}while ($url_parts['query'] != urldecode($tmp_query));
-			*/
+			//do{	
+			//	$url_parts['query'] = urldecode($url_parts['query']);
+			//	$tmp_query          = $url_parts['query'];
+			//}while ($url_parts['query'] != urldecode($tmp_query));
 			
 			$query_elements     = explode('&',$url_parts['query']);
 			$new_query_elements = Array();
@@ -310,6 +343,10 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 		}
 		$new_url .= '?'.$url_parts['query'];
 	}
+	*/
+	if(isset($url_parts['query'])){
+		$new_url .= '?'.$url_parts['query'];
+	}
 
 	//fragment
 	if(isset($url_parts['fragment'])){
@@ -317,12 +354,13 @@ function canonicalize_url($url,$target_scheme=null,$target_host=null){
 	}
 
 	//replace unnecessary encodet variants 
+	/* also very agressive
 	$new_url = str_replace('%20','+',$new_url);
 	$new_url = str_replace(' ','+',$new_url);
 	$new_url = str_replace('%2C',',',$new_url);
 	$new_url = str_replace('%2A',':',$new_url);
 	$new_url = str_replace('%2B',';',$new_url);
-
+	*/
 
 	if(!is_url($new_url,true)){
 		if($new_url == $url){
