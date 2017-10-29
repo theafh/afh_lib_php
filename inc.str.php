@@ -1,4 +1,4 @@
-<?
+<?php
 
 //checks if a given strings could be an valid md5-sum
 function str_is_md5($str){
