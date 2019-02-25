@@ -20,18 +20,18 @@ function afh_mysql_close($link){
 	mysqli_close($link);
 }
 
-function afh_mysql_send($link,$sql){
+function afh_mysql_send($link, $sql, $trigger_mode=E_USER_ERROR){
 
 	if (mysqli_query($link, $sql) === TRUE) {
 		return true;
 	}
 	else{
-		//trigger_error("afh_mysql_send feild!! ERROR MSG:\n".mysqli_connect_error()."\n", $trigger_mode);
+		trigger_error("afh_mysql_send feild!! ERROR MSG:\n".mysqli_connect_error()."\n", $trigger_mode);
 		return false;
 	}
 }
 
-function afh_mysql_fetch_rows($link,$sql){
+function afh_mysql_fetch_rows($link, $sql, $trigger_mode=E_USER_ERROR){
 	if ($stmt = mysqli_prepare($link, $sql)) {
 		mysqli_stmt_execute($stmt);
 
@@ -64,7 +64,7 @@ function afh_mysql_fetch_rows($link,$sql){
 		return $ret_arr;
 	}
 	else{
-		//trigger_error("afh_mysql_send feild!! ERROR MSG:\n".mysqli_error($link)."\n", E_USER_WARNING);
+		trigger_error("afh_mysql_send feild!! ERROR MSG:\n".mysqli_error($link)."\n", E_USER_WARNING);
 		return false;
 	}
 
